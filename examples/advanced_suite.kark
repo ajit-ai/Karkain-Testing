@@ -1,0 +1,18 @@
+// Karkain-Testing Phase 2 example: groups, fixtures, parameterised checks,
+// filtering and a machine-readable report.
+import ktesting
+
+func main() {
+    let suite = ktesting.new_suite()
+    suite = ktesting.with_fixture(suite, "db", true, true, true)
+    suite = ktesting.check_each(suite, "case", [1, 2, 3], [1, 4, 9])
+
+    let g = ktesting.new_group("reports")
+    g = ktesting.group_check(g, "list", true)
+    g = ktesting.group_check(g, "export", false)
+
+    println(ktesting.group_summary(g))
+    println(ktesting.machine_report("suite", suite))
+    println("filtered=" + str(len(ktesting.matching_labels(suite, "case"))))
+    println("covered=" + str(ktesting.total_count(ktesting.coverage_mark(suite, "render"))))
+}

@@ -133,3 +133,165 @@ public func require_pass(title, suite) {
     let ok = report(title, suite)
     assert(ok)
 }
+
+// ---------------------------------------------------------------------------
+// Phase 2 additions. All Phase 1 functions above keep their signatures and
+// behaviour. New capabilities are additive.
+
+// new_group creates a named test group. Groups are separate check logs so a
+// host can run suites and groups independently.
+public func new_group(name) {
+    let g = []
+    g = push(g, name)
+    return g
+}
+
+// group_name returns the group name.
+public func group_name(group) {
+    return group[0]
+}
+
+// group_check records a labelled check inside a group.
+public func group_check(group, label, ok) {
+    let out = group
+    out = push(out, label)
+    out = push(out, ok)
+    return out
+}
+
+// group_size returns the number of checks in a group.
+public func group_size(group) {
+    return (len(group) - 1) / 2
+}
+
+// group_passed counts passing checks in a group.
+public func group_passed(group) {
+    let n = 0
+    let i = 2
+    while (i < len(group)) {
+        if group[i] {
+            n = n + 1
+        }
+        i = i + 2
+    }
+    return n
+}
+
+// group_summary builds a one-line group summary.
+public func group_summary(group) {
+    return group_name(group) + ": " + str(group_passed(group)) + "/" + str(group_size(group)) + " passed"
+}
+
+// merge_groups appends every check of b into a, keeping a's group name.
+public func merge_groups(a, b) {
+    let out = a
+    let i = 1
+    while (i < len(b)) {
+        out = push(out, b[i])
+        out = push(out, b[i + 1])
+        i = i + 2
+    }
+    return out
+}
+
+// with_fixture runs setup, a check and teardown in order, recording each
+// lifecycle step in the suite. This models fixture lifecycle explicitly.
+public func with_fixture(suite, name, setup_ok, check_ok, teardown_ok) {
+    let out = check(suite, name + ":setup", setup_ok)
+    out = check(out, name + ":body", check_ok)
+    return check(out, name + ":teardown", teardown_ok)
+}
+
+// check_each applies the same value/expected pair rule to every element of
+// a dataset, producing labelled parameterised checks.
+public func check_each(suite, prefix, values, expected) {
+    let out = suite
+    let i = 0
+    while (i < len(values)) {
+        let label = prefix + "[" + str(i) + "]"
+        out = expect_eq(out, label, values[i], expected[i])
+        i = i + 1
+    }
+    return out
+}
+
+// soft_expect is a named soft-check primitive used by the Phase 2
+// assertion extensions. It preserves the Phase 1 result convention.
+public func soft_expect(suite, label, rule, ok, detail) {
+    if ok {
+        return suite
+    }
+    return record(suite, false, label, rule + ": " + detail)
+}
+
+// assert_contains adds a soft string-containment assertion.
+public func assert_contains(suite, label, text, needle) {
+    let detail = "expected " + text + " to contain " + needle
+    return soft_expect(suite, label, "contains", contains(text, needle), detail)
+}
+
+// assert_in_range adds a soft inclusive numeric range assertion.
+public func assert_in_range(suite, label, value, minimum, maximum) {
+    let detail = label + " out of range"
+    let ok = true
+    if value < minimum {
+        ok = false
+    }
+    if value > maximum {
+        ok = false
+    }
+    return soft_expect(suite, label, "range", ok, detail)
+}
+
+// assert_not_empty adds a soft non-empty string/array assertion.
+public func assert_not_empty(suite, label, value) {
+    let ok = len(value) > 0
+    return soft_expect(suite, label, "not_empty", ok, label + " must not be empty")
+}
+
+// matching_labels returns the labels of checks whose label contains a
+// substring, enabling test filtering without a runner-side import.
+public func matching_labels(suite, pattern) {
+    let out = []
+    let i = 0
+    while (i < len(suite)) {
+        if contains(suite[i + 1], pattern) {
+            out = push(out, suite[i + 1])
+        }
+        i = i + 3
+    }
+    return out
+}
+
+// machine_report builds a deterministic machine-readable result line using
+// only string concatenation (no JSON library is available in v1.2.0).
+public func machine_report(title, suite) {
+    let line = "RESULT|" + title + "|total=" + str(total_count(suite)) + "|pass=" + str(passed_count(suite)) + "|fail=" + str(failed_count(suite)) + "|items"
+    let i = 0
+    while (i < len(suite)) {
+        let status = "PASS"
+        if suite[i] == false {
+            status = "FAIL"
+        }
+        line = line + "|" + suite[i + 1] + "=" + status
+        i = i + 3
+    }
+    return line
+}
+
+// snapshot returns an independent value copy of a suite (arrays are values).
+public func snapshot(suite) {
+    let out = []
+    let i = 0
+    while (i < len(suite)) {
+        out = push(out, suite[i])
+        i = i + 1
+    }
+    return out
+}
+
+// coverage_mark records an executed instrumentation site as a passing note.
+// This is explicit instrumentation, not automatic coverage measurement.
+public func coverage_mark(suite, site) {
+    return note(suite, "@coverage:" + site, "executed")
+}

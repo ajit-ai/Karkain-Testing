@@ -55,7 +55,7 @@ try {
     Write-Output "TEST native: exit=$code"
     Write-Output $out
     if ($code -ne 0) { throw 'native tests failed' }
-    if ($out -notlike '*10 tests, 10 passed, 0 failed*') { throw 'native test summary did not match 10/10' }
+    if ($out -notlike '*20 tests, 20 passed, 0 failed*') { throw 'native test summary did not match 20/20' }
 
     # 3. Integration: a real Karkain program consumes the public API.
     $verify = Join-Path $repo 'src\verify.kark'
@@ -89,6 +89,19 @@ try {
     if ($code -ne 0) { throw 'example failed' }
     if ($out -notlike '*suite total: 6*') { throw 'example summary missing' }
     if ($out -notlike '*suite ok: 0*') { throw 'example soft-failure status missing' }
+
+    # Gate 6: advanced Phase 2 example.
+    $advDir = Join-Path $tmp 'advanced'
+    New-Item -ItemType Directory -Path $advDir | Out-Null
+    Copy-Item -LiteralPath $module -Destination (Join-Path $advDir 'ktesting.kark')
+    Copy-Item -LiteralPath (Join-Path $repo 'examples\advanced_suite.kark') -Destination (Join-Path $advDir 'advanced_suite.kark')
+    $out = Invoke-Karkain @('run', (Join-Path $advDir 'advanced_suite.kark'))
+    $code = $LASTEXITCODE
+    Write-Output "RUN advanced example: exit=$code"
+    Write-Output $out
+    if ($code -ne 0) { throw 'advanced example failed' }
+    if ($out -notlike '*reports: 1/2 passed*') { throw 'advanced group summary missing' }
+    if ($out -notlike '*RESULT|suite|total=6|pass=4|fail=2*') { throw 'advanced machine report missing' }
 
     Write-Output 'VERIFY: ALL GATES PASSED'
 }

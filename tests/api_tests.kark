@@ -96,3 +96,100 @@ func test_empty_suite_edge_case() {
     assert(all_passed(s))
     assert_eq(summary("empty", s), "empty: 0 passed; 0 failed")
 }
+
+// --- Phase 2: backward-compatibility regression for all Phase 1 exports ---
+
+func test_phase1_api_regression() {
+    let s = new_suite()
+    s = record(s, true, "raw", "d")
+    s = check(s, "c", true)
+    s = expect_true(s, "t", true)
+    s = expect_false(s, "f", false)
+    s = expect_eq(s, "eq", 1, 1)
+    s = expect_ne(s, "ne", 1, 2)
+    s = fail(s, "x", "no")
+    s = note(s, "n", "info")
+    assert_eq(total_count(s), 8)
+    assert_eq(failed_count(s), 1)
+    assert_eq(passed_count(s), 7)
+    assert(all_passed(s) == false)
+    assert_eq(summary("r", s), "r: 7 passed; 1 failed")
+    assert(report("r", s) == false)
+}
+
+// --- Phase 2: new capabilities ---
+
+func test_group_lifecycle() {
+    let g = new_group("unit")
+    g = group_check(g, "a", true)
+    g = group_check(g, "b", false)
+    assert_eq(group_name(g), "unit")
+    assert_eq(group_size(g), 2)
+    assert_eq(group_passed(g), 1)
+    assert_eq(group_summary(g), "unit: 1/2 passed")
+}
+
+func test_merge_groups() {
+    let a = group_check(new_group("a"), "x", true)
+    let b = group_check(group_check(new_group("b"), "y", true), "z", true)
+    let m = merge_groups(a, b)
+    assert_eq(group_name(m), "a")
+    assert_eq(group_size(m), 3)
+}
+
+func test_fixture_lifecycle() {
+    let s = with_fixture(new_suite(), "db", true, true, true)
+    assert_eq(total_count(s), 3)
+    assert_eq(passed_count(s), 3)
+}
+
+func test_fixture_failure_detection() {
+    let s = with_fixture(new_suite(), "db", true, false, true)
+    assert_eq(failed_count(s), 1)
+    assert_eq(matching_labels(s, ":body")[0], "db:body")
+}
+
+func test_check_each_parameterised() {
+    let s = check_each(new_suite(), "case", [1, 2, 3], [1, 2, 3])
+    assert_eq(total_count(s), 3)
+    assert_eq(passed_count(s), 3)
+    let bad = check_each(new_suite(), "case", [1, 2], [1, 5])
+    assert_eq(failed_count(bad), 1)
+}
+
+func test_assertion_extensions() {
+    let s = new_suite()
+    s = assert_contains(s, "sub", "hello world", "world")
+    s = assert_contains(s, "miss", "hello", "xyz")
+    s = assert_in_range(s, "ok", 5, 1, 10)
+    s = assert_in_range(s, "low", 0, 1, 10)
+    s = assert_in_range(s, "high", 11, 1, 10)
+    s = assert_not_empty(s, "filled", "x")
+    s = assert_not_empty(s, "blank", "")
+    assert_eq(failed_count(s), 4)
+}
+
+func test_filtering_and_isolation() {
+    let s = check(check(new_suite(), "alpha:one", true), "beta:two", true)
+    let labels = matching_labels(s, "alpha")
+    assert_eq(len(labels), 1)
+    assert_eq(labels[0], "alpha:one")
+    let copy = snapshot(s)
+    let changed = check(copy, "extra", false)
+    assert_eq(total_count(s), 2)
+    assert_eq(total_count(changed), 3)
+}
+
+func test_machine_report() {
+    let s = check(check(new_suite(), "a", true), "b", false)
+    let line = machine_report("suite", s)
+    assert(contains(line, "RESULT|suite|total=2|pass=1|fail=1"))
+    assert(contains(line, "a=PASS"))
+    assert(contains(line, "b=FAIL"))
+}
+
+func test_coverage_mark() {
+    let s = coverage_mark(new_suite(), "parser.parse")
+    assert_eq(total_count(s), 1)
+    assert_eq(matching_labels(s, "@coverage")[0], "@coverage:parser.parse")
+}

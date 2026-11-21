@@ -1,0 +1,28 @@
+// Karkain-Testing - runnable example.
+//
+// The framework module src/ktesting.kark must be a sibling of this file
+// when running directly, because Karkain v1.2.0 resolves local imports
+// from the entry file's directory. scripts\verify.ps1 performs that
+// staging automatically.
+import ktesting
+
+func normalize(n) {
+    return n * 2
+}
+
+func main() {
+    let suite = ktesting.new_suite()
+
+    suite = ktesting.expect_eq(suite, "normalize(2)", normalize(2), 4)
+    suite = ktesting.expect_eq(suite, "normalize(0)", normalize(0), 0)
+    suite = ktesting.expect_true(suite, "positive result", normalize(3) > 0)
+    suite = ktesting.expect_ne(suite, "not equal", normalize(5), 11)
+    suite = ktesting.note(suite, "note", "demo notes are recorded as passing entries")
+
+    // A soft failure is recorded but does not stop the remaining checks.
+    suite = ktesting.expect_eq(suite, "demonstrated failure", normalize(7), 15)
+
+    let ok = ktesting.report("normalize suite", suite)
+    println("suite total: " + str(ktesting.total_count(suite)))
+    println("suite ok: " + str(ok))
+}

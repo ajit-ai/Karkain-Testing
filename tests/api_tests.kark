@@ -1,0 +1,98 @@
+// Native test bodies for Karkain-Testing.
+//
+// The Karkain v1.2.0 `karkain test` driver does not resolve import
+// statements, so these test_* functions are written against the API in
+// scope. scripts/verify.ps1 concatenates src/ktesting.kark with this file
+// into a temporary single-file test program and runs the real compiler
+// against it. Do not add import statements here.
+
+func test_new_suite_is_empty() {
+    let s = new_suite()
+    assert_eq(len(s), 0)
+    assert_eq(total_count(s), 0)
+}
+
+func test_record_stores_triples() {
+    let s = new_suite()
+    s = record(s, true, "first", "detail-a")
+    s = record(s, false, "second", "detail-b")
+    assert_eq(len(s), 6)
+    assert_eq(total_count(s), 2)
+    assert_eq(s[1], "first")
+    assert_eq(s[2], "detail-a")
+    assert_eq(s[4], "second")
+    assert_eq(s[5], "detail-b")
+}
+
+func test_check_and_counts() {
+    let s = new_suite()
+    s = check(s, "ok", true)
+    s = check(s, "bad", false)
+    s = check(s, "ok2", true)
+    assert_eq(total_count(s), 3)
+    assert_eq(passed_count(s), 2)
+    assert_eq(failed_count(s), 1)
+}
+
+func test_expect_true_and_false() {
+    let s = new_suite()
+    s = expect_true(s, "t", 4 > 2)
+    s = expect_true(s, "f", 4 < 2)
+    s = expect_false(s, "ft", 4 == 5)
+    s = expect_false(s, "ff", 4 == 4)
+    assert_eq(passed_count(s), 2)
+    assert_eq(failed_count(s), 2)
+    assert(all_passed(s) == false)
+}
+
+func test_expect_eq_and_ne() {
+    let s = new_suite()
+    s = expect_eq(s, "eq-ok", 7, 7)
+    s = expect_eq(s, "eq-bad", 7, 8)
+    s = expect_ne(s, "ne-ok", 7, 8)
+    s = expect_ne(s, "ne-bad", 7, 7)
+    assert_eq(passed_count(s), 2)
+    assert_eq(failed_count(s), 2)
+}
+
+func test_fail_and_note() {
+    let s = new_suite()
+    s = fail(s, "forced", "because")
+    s = note(s, "info", "for context")
+    assert_eq(failed_count(s), 1)
+    assert_eq(passed_count(s), 1)
+    assert_eq(s[2], "because")
+    assert_eq(s[5], "for context")
+}
+
+func test_all_passed_on_clean_suite() {
+    let s = new_suite()
+    s = check(s, "a", true)
+    s = check(s, "b", true)
+    assert(all_passed(s))
+}
+
+func test_summary_format() {
+    let s = new_suite()
+    s = check(s, "a", true)
+    s = check(s, "b", false)
+    assert_eq(summary("demo", s), "demo: 1 passed; 1 failed")
+}
+
+func test_report_returns_status() {
+    let s = new_suite()
+    s = check(s, "a", true)
+    assert(report("clean", s))
+    let n = new_suite()
+    n = check(n, "b", false)
+    assert(report("dirty", n) == false)
+}
+
+func test_empty_suite_edge_case() {
+    let s = new_suite()
+    assert_eq(total_count(s), 0)
+    assert_eq(passed_count(s), 0)
+    assert_eq(failed_count(s), 0)
+    assert(all_passed(s))
+    assert_eq(summary("empty", s), "empty: 0 passed; 0 failed")
+}

@@ -1,0 +1,135 @@
+// Karkain-Testing - framework-level test suite infrastructure.
+// Compatible with Karkain Language v1.2.0 (verified tag v1.2.0,
+// commit 77d70693e1e3134dac312a303bffafa7d50fa988).
+//
+// Scope boundary:
+//   The Karkain standard library already provides hard assertions
+//   (assert / assert_eq / assert_ne) and std.testing's boolean-array
+//   helpers. This module does NOT duplicate those. It adds a named,
+//   soft, accumulating check log: every check runs, results are kept
+//   with a label and a diagnostic detail, and the whole suite can be
+//   reported at once. This is framework-level infrastructure, not a
+//   replacement for the language assertion builtins.
+//
+// Canonical v1.2.0 subset used here: untyped parameters, no type
+// annotations, no structs, no imports, arrays, strings, while/if,
+// str/len/push/println/assert.
+
+// new_suite returns an empty check log.
+public func new_suite() {
+    return []
+}
+
+// record appends one check entry to a suite log. Entries are stored as
+// triples [ok, label, detail] so no string parsing is needed to inspect
+// or count results. Arrays are values in Karkain, so the grown array is
+// returned and must be captured by the caller.
+public func record(suite, ok, label, detail) {
+    let out = suite
+    out = push(out, ok)
+    out = push(out, label)
+    out = push(out, detail)
+    return out
+}
+
+// check records a named boolean check.
+public func check(suite, label, ok) {
+    return record(suite, ok, label, "")
+}
+
+// expect_true records a check that cond must be true.
+public func expect_true(suite, label, cond) {
+    let detail = "expected true, got " + str(cond)
+    return record(suite, cond, label, detail)
+}
+
+// expect_false records a check that cond must be false.
+public func expect_false(suite, label, cond) {
+    let detail = "expected false, got " + str(cond)
+    return record(suite, cond == false, label, detail)
+}
+
+// expect_eq records a soft equality check with actual/expected detail.
+public func expect_eq(suite, label, actual, expected) {
+    let ok = actual == expected
+    let detail = "expected " + str(expected) + ", got " + str(actual)
+    return record(suite, ok, label, detail)
+}
+
+// expect_ne records a soft inequality check with diagnostic detail.
+public func expect_ne(suite, label, actual, unexpected) {
+    let ok = actual != unexpected
+    let detail = "did not expect " + str(unexpected) + ", got " + str(actual)
+    return record(suite, ok, label, detail)
+}
+
+// fail records an unconditional failure with a reason.
+public func fail(suite, label, detail) {
+    return record(suite, false, label, detail)
+}
+
+// note records an informational always-passing entry.
+public func note(suite, label, detail) {
+    return record(suite, true, label, detail)
+}
+
+// total_count returns the number of recorded checks.
+public func total_count(suite) {
+    return len(suite) / 3
+}
+
+// passed_count counts successful checks.
+public func passed_count(suite) {
+    let n = 0
+    let i = 0
+    while (i < len(suite)) {
+        if suite[i] {
+            n = n + 1
+        }
+        i = i + 3
+    }
+    return n
+}
+
+// failed_count counts failed checks.
+public func failed_count(suite) {
+    let n = 0
+    let i = 0
+    while (i < len(suite)) {
+        if suite[i] == false {
+            n = n + 1
+        }
+        i = i + 3
+    }
+    return n
+}
+
+// all_passed reports whether every recorded check passed.
+public func all_passed(suite) {
+    return failed_count(suite) == 0
+}
+
+// summary builds a one-line summary string for a named suite.
+public func summary(title, suite) {
+    return title + ": " + str(passed_count(suite)) + " passed; " + str(failed_count(suite)) + " failed"
+}
+
+// report prints a full report and returns the overall status.
+public func report(title, suite) {
+    println(summary(title, suite))
+    let i = 0
+    while (i < len(suite)) {
+        if suite[i] == false {
+            println("FAIL " + suite[i + 1] + " - " + suite[i + 2])
+        }
+        i = i + 3
+    }
+    return all_passed(suite)
+}
+
+// require_pass reports a suite and hard-fails the program if anything
+// failed, allowing CI to observe a non-zero exit status.
+public func require_pass(title, suite) {
+    let ok = report(title, suite)
+    assert(ok)
+}

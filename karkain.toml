@@ -1,0 +1,7 @@
+name = "karkain-testing"
+version = "0.1.0-dev"
+description = "Framework-level soft-check suite infrastructure for Karkain v1.2.0"
+license = "MIT"
+targets = ["native"]
+
+[dependencies]

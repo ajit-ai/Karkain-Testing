@@ -1,0 +1,39 @@
+// Integration verification for the Karkain-Testing public API.
+// Run from the Karkain v1.2.0 source root:
+//   karkain run F:\Codes\Git\Karkain-Ecosystem\Frameworks\Karkain-Testing\src\verify.kark
+// The framework module ktesting.kark is a sibling of this file and is
+// resolved by the v1.2.0 module loader.
+import ktesting
+
+func main() {
+    let s = ktesting.new_suite()
+    s = ktesting.check(s, "boolean true", true)
+    s = ktesting.expect_true(s, "expect_true", 3 < 5)
+    s = ktesting.expect_false(s, "expect_false", 3 == 4)
+    s = ktesting.expect_eq(s, "eq int", 2 + 2, 4)
+    s = ktesting.expect_eq(s, "eq string", "abc", "abc")
+    s = ktesting.expect_ne(s, "ne int", 5, 6)
+    s = ktesting.note(s, "info", "informational")
+
+    assert(ktesting.total_count(s) == 7)
+    assert(ktesting.passed_count(s) == 7)
+    assert(ktesting.failed_count(s) == 0)
+    assert(ktesting.all_passed(s))
+    println(ktesting.summary("positive", s))
+
+    // Negative suite: failures must be recorded and counted, not hidden,
+    // and reporting must not abort the program.
+    let n = ktesting.new_suite()
+    n = ktesting.expect_eq(n, "wrong value", 1, 2)
+    n = ktesting.fail(n, "forced", "expected failure")
+    assert(ktesting.total_count(n) == 2)
+    assert(ktesting.failed_count(n) == 2)
+    assert(ktesting.passed_count(n) == 0)
+    assert(ktesting.all_passed(n) == false)
+
+    let neg_ok = ktesting.report("negative", n)
+    assert(neg_ok == false)
+
+    // require_pass hard-fails on a failing suite; the positive suite passes.
+    ktesting.require_pass("positive-final", s)
+}
